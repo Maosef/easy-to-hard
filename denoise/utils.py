@@ -10,7 +10,7 @@ import os
 import sys
 from dataclasses import dataclass
 
-# from easy_to_hard_data import MazeDataset
+from easy_to_hard_data import MazeDataset
 import torch
 import torch.utils.data as data
 from icecream import ic
@@ -45,9 +45,10 @@ class NoisyImageDataset(torch.utils.data.Dataset):
 
         print(f"Loading data with {num_bits} bits.")
 
-        inputs_path = os.path.join(root, self.base_folder, f"data_{num_bits}.pth")
-        targets_path = os.path.join(root, self.base_folder, f"targets_{num_bits}.pth")
-        self.inputs = torch.load(inputs_path)
+        # TODO: swap inputs and targets path
+        targets_path = os.path.join(root, self.base_folder, f"data_{num_bits}.pth")
+        inputs_path = os.path.join(root, self.base_folder, f"targets_{num_bits}.pth")
+        self.inputs = torch.tensor(torch.load(inputs_path)).float()
         self.targets = torch.load(targets_path)
         self.train = train
 
@@ -87,6 +88,9 @@ def get_dataloaders(train_batch_size, test_batch_size, shuffle=True):
 
     train_data = NoisyImageDataset("./data", train=True)
     test_data = NoisyImageDataset("./data", train=False)
+    # train_data = MazeDataset("./data", train=True)
+    # test_data = MazeDataset("./data", train=False)
+
 
 
     trainloader = data.DataLoader(train_data, num_workers=0, batch_size=train_batch_size,
@@ -175,17 +179,24 @@ def test_default(net, testloader, device):
     correct = 0
     total = 0
 
+    criterion = torch.nn.MSELoss()
+    total_loss = 0
+
     with torch.no_grad():
         for inputs, targets in tqdm(testloader, leave=False):
-            inputs, targets = inputs.to(device), targets.to(device)[:, 0, :, :].long()
+            inputs, targets = inputs.to(device), targets.to(device)
             outputs = net(inputs)
 
-            predicted = outputs.argmax(1) * inputs.max(1)[0]
-            correct += torch.amin(predicted == targets, dim=[1, 2]).sum().item()
+            # predicted = outputs.argmax(1) * inputs.max(1)[0]
+            # correct += torch.amin(predicted == targets, dim=[1, 2]).sum().item()
+            loss = criterion(outputs, targets)
+            total_loss += loss.item()*targets.size(0)
+
             total += targets.size(0)
 
-    accuracy = 100.0 * correct / total
-    return accuracy
+    # accuracy = 100.0 * correct / total
+    # return accuracy
+    return total_loss / total
 
 
 def test_max_conf(net, testloader, device):
@@ -199,7 +210,7 @@ def test_max_conf(net, testloader, device):
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(testloader):
 
-            inputs, targets = inputs.to(device), targets.to(device)[:, 0, :, :].long()
+            inputs, targets = inputs.to(device), targets.to(device)
             net(inputs)
             confidence_array = torch.zeros(net.iters, inputs.size(0))
             for i, thought in enumerate(net.thoughts):
@@ -256,8 +267,9 @@ def to_log_file(out_dict, out_dir, log_name="log.txt"):
 def train(net, trainloader, mode, optimizer_obj, device):
     try:
         train_loss, acc = eval(f"train_{mode}")(net, trainloader, optimizer_obj, device)
-    except NameError:
+    except NameError as e:
         print(f"{ic.format()}: train_{mode}() not implemented. Exiting.")
+        print(e)
         sys.exit()
     return train_loss, acc
 
@@ -270,7 +282,7 @@ def train_default(net, trainloader, optimizer_obj, device):
     lr_scheduler = optimizer_obj.scheduler
     warmup_scheduler = optimizer_obj.warmup
 
-    criterion = torch.nn.CrossEntropyLoss(reduction="none")
+    criterion = torch.nn.MSELoss()
 
     train_loss = 0
     correct = 0
@@ -278,38 +290,34 @@ def train_default(net, trainloader, optimizer_obj, device):
     total_pixels = 0
 
     for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader, leave=False)):
-        inputs, targets = inputs.to(device), targets.to(device)[:, 0, :, :].long()
+        
+        inputs = inputs.float() # type error otherwise
+        # targets = targets.float()
+
+        inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
 
-        n, c, h, w = outputs.size()
-        reshaped_outputs = outputs.transpose(1, 2).transpose(2, 3).contiguous()
-        reshaped_outputs = reshaped_outputs[targets.view(n, h, w, 1).repeat(1, 1, 1, c) >= 0]
-        reshaped_outputs = reshaped_outputs.view(-1, c)
-
-        reshaped_inputs = inputs.transpose(1, 2).transpose(2, 3).contiguous()
-        reshaped_inputs = reshaped_inputs.mean(3).unsqueeze(-1)
-        reshaped_inputs = reshaped_inputs[targets.view(n, h, w, 1).repeat(1, 1, 1, 1) >= 0]
-        reshaped_inputs = reshaped_inputs.view(-1, 1)
-        path_mask = (reshaped_inputs > 0).squeeze()
-
-        mask = targets >= 0.0
-        reshaped_targets = targets[mask]
-
-        loss = criterion(reshaped_outputs, reshaped_targets)
-        loss = loss[path_mask].mean()
+        # loss = criterion(reshaped_outputs, reshaped_targets)
+        loss = criterion(outputs, targets)
+        # loss = loss[path_mask].mean()
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item() * path_mask.size(0)
-        total_pixels += path_mask.size(0)
+        # train_loss += loss.item() * path_mask.size(0)
+        # total_pixels += path_mask.size(0)
+        train_loss += loss.item()*targets.size(0)
 
-        predicted = outputs.argmax(1) * inputs.max(1)[0]
-        correct += torch.amin(predicted == targets, dim=[1, 2]).sum().item()
+
+        # predicted = outputs.argmax(1) * inputs.max(1)[0]
+        # correct += torch.amin(predicted == targets, dim=[1, 2]).sum().item()
+        
         total += targets.size(0)
 
-    train_loss = train_loss / total_pixels
-    acc = 100.0 * correct / total
+    # train_loss = train_loss / total_pixels
+    train_loss = train_loss / total
+    # acc = 100.0 * correct / total
+    acc = 0
     lr_scheduler.step()
     warmup_scheduler.dampen()
 

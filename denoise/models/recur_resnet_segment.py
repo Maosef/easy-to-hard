@@ -53,7 +53,8 @@ class RecurResNet(nn.Module):
                                stride=1, padding=1, bias=False)
         self.conv3 = nn.Conv2d(32, 8, kernel_size=3,
                                stride=1, padding=1, bias=False)
-        self.conv4 = nn.Conv2d(8, 2, kernel_size=3,
+        # output has 3 color channels
+        self.conv4 = nn.Conv2d(8, 3, kernel_size=3,
                                stride=1, padding=1, bias=False)
 
     def _make_layer(self, block, planes, num_blocks, stride):
@@ -65,7 +66,9 @@ class RecurResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        self.thoughts = torch.zeros((self.iters, x.shape[0], 2, x.shape[2], x.shape[3])).to(x.device)
+        # self.thoughts = torch.zeros((self.iters, x.shape[0], 2, x.shape[2], x.shape[3])).to(x.device)
+        self.thoughts = torch.zeros((self.iters, x.shape[0], 3, x.shape[2], x.shape[3])).to(x.device)
+
         out = F.relu(self.conv1(x))
         for i in range(self.iters):
             out = self.recur_block(out)
