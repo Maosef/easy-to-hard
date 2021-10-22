@@ -9,6 +9,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+import numpy as np
 
 from easy_to_hard_data import MazeDataset
 import torch
@@ -87,7 +88,7 @@ class NoisyImageDataset(torch.utils.data.Dataset):
 def get_dataloaders(train_batch_size, test_batch_size, shuffle=True):
 
     train_data = NoisyImageDataset("./data", train=True)
-    test_data = NoisyImageDataset("./data", train=False)
+    test_data = NoisyImageDataset("./data", train=False,num_bits=0.5)
     # train_data = MazeDataset("./data", train=True)
     # test_data = MazeDataset("./data", train=False)
 
@@ -297,6 +298,9 @@ def train_default(net, trainloader, optimizer_obj, device):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
+
+        if batch_idx == 0:
+            print("Mean output {}".format(np.mean(outputs.data.cpu().numpy())))
 
         # loss = criterion(reshaped_outputs, reshaped_targets)
         loss = criterion(outputs, targets)

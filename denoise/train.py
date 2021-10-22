@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--data_path", default="../data", type=str, help="path to data files")
     parser.add_argument("--depth", default=1, type=int, help="depth of the network")
     parser.add_argument("--epochs", default=200, type=int, help="number of epochs for training")
-    parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
+    parser.add_argument("--lr", default=0.01, type=float, help="learning rate")
     parser.add_argument("--lr_factor", default=0.1, type=float, help="learning rate decay factor")
     parser.add_argument("--lr_schedule", nargs="+", default=[100, 150], type=int,
                         help="how often to decrease lr")
@@ -128,6 +128,8 @@ def main():
     print(f"==> Starting training for {args.epochs - start_epoch} epochs...")
 
     for epoch in range(start_epoch, args.epochs):
+        for name, param in net.named_parameters():
+            print("Name {}, average mean {}".format(name,np.mean(param.data.cpu().numpy())))
 
         loss, acc = train(net, trainloader, args.train_mode, optimizer_obj, device)
 

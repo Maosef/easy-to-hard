@@ -1,7 +1,7 @@
 OUTPUT="test"
 # RNN_MODEL_PATH="checkpoints/recur/recur_net_sgd_depth=84_width=8_lr=0.01_batchsize=300_at109_epoch=119_1.pth"
 # RNN_MODEL_PATH="checkpoints/recur_resnet_adam_depth=28_width=2_lr=0.1_batchsize=64_at0_epoch=0_log.pth"
-RNN_MODEL_PATH="check_default/recur_resnet_adam_depth=28_width=2_lr=0.1_batchsize=64_at4_epoch=4_log.pth"
+RNN_MODEL_PATH="check_default/recur_resnet_adam_depth=28_width=2_lr=0.01_batchsize=64_at1_epoch=1_log.pth"
 
 # DEPTH=84
 # FF_MODEL_PATH="checkpoints/ff/ff_net_sgd_depth=${DEPTH}_width=8_lr=0.01_batchsize=300_at119_epoch=119_1.pth"
