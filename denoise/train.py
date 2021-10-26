@@ -116,8 +116,7 @@ def main():
     else:
         warmup_scheduler = warmup.ExponentialWarmup(optimizer, warmup_period=args.warmup_period)
 
-    lr_scheduler = MultiStepLR(optimizer, milestones=args.lr_schedule, gamma=args.lr_factor,
-                               last_epoch=start_epoch-1)
+    lr_scheduler = CosineAnnealingLR(optimizer, len(trainloader)*args.epochs)
 
     optimizer_obj = OptimizerWithSched(optimizer, lr_scheduler, warmup_scheduler)
     torch.backends.cudnn.benchmark = True
